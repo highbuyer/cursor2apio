@@ -40,7 +40,7 @@ COPY --chown=cursor:nodejs config.yaml ./config.yaml
 USER cursor
 
 # 声明对外暴露的端口
-EXPOSE 3010
+EXPOSE 3099
 
 # 启动服务
 CMD ["npm", "start"]

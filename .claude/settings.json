@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \":*)",
+      "Bash(git push:*)",
+      "Bash(ls ~/.ssh/id_*.pub)",
+      "Bash(cat ~/.ssh/id_*.pub)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

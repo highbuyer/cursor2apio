@@ -29,92 +29,101 @@ function toolId(): string {
 }
 
 // ==================== 拒绝模式识别 ====================
-const REFUSAL_PATTERNS = [
-    // English identity refusal
+// ==================== 拒绝检测：多维度特征打分 ====================
+//
+// 原理：单条特征命中不触发，需多个特征叠加超过阈值才判定为拒绝。
+// 优势：比纯正则更抗变体措辞，误判率更低，阈值可调。
+
+// 高权重：强拒绝信号（单独出现即高度可疑）
+const REFUSAL_HIGH: RegExp[] = [
     /Cursor(?:'s)?\s+support\s+assistant/i,
     /support\s+assistant\s+for\s+Cursor/i,
-    /I[''']m\s+sorry/i,
+    /I[‘’']m\s+sorry/i,
     /I\s+am\s+sorry/i,
     /not\s+able\s+to\s+fulfill/i,
-    /cannot\s+perform/i,
-    /I\s+can\s+only\s+answer/i,
-    /I\s+only\s+answer/i,
+    /(?:^|\s)I\s+cannot\s+perform/i,
     /cannot\s+write\s+files/i,
-    /pricing[, \s]*or\s*troubleshooting/i,
     /I\s+cannot\s+help\s+with/i,
-    /I'm\s+a\s+coding\s+assistant/i,
-    /not\s+able\s+to\s+search/i,
-    /not\s+in\s+my\s+core/i,
-    /outside\s+my\s+capabilities/i,
-    /I\s+cannot\s+search/i,
-    /focused\s+on\s+software\s+development/i,
-    /not\s+able\s+to\s+help\s+with\s+(?:that|this)/i,
     /beyond\s+(?:my|the)\s+scope/i,
+    /outside\s+my\s+capabilities/i,
     /I'?m\s+not\s+(?:able|designed)\s+to/i,
-    /I\s+don't\s+have\s+(?:the\s+)?(?:ability|capability)/i,
-    /questions\s+about\s+(?:Cursor|the\s+(?:AI\s+)?code\s+editor)/i,
-    // English topic refusal — Cursor 拒绝非编程话题
-    /help\s+with\s+(?:coding|programming)\s+and\s+Cursor/i,
-    /Cursor\s+IDE\s+(?:questions|features|related)/i,
-    /unrelated\s+to\s+(?:programming|coding)(?:\s+or\s+Cursor)?/i,
-    /Cursor[- ]related\s+question/i,
-    /(?:ask|please\s+ask)\s+a\s+(?:programming|coding|Cursor)/i,
-    /(?:I'?m|I\s+am)\s+here\s+to\s+help\s+with\s+(?:coding|programming)/i,
-    /appears\s+to\s+be\s+(?:asking|about)\s+.*?unrelated/i,
-    /(?:not|isn't|is\s+not)\s+(?:related|relevant)\s+to\s+(?:programming|coding|software)/i,
-    /I\s+can\s+help\s+(?:you\s+)?with\s+things\s+like/i,
-    // Prompt injection / social engineering detection (new failure mode)
-    /prompt\s+injection\s+attack/i,
     /prompt\s+injection/i,
     /social\s+engineering/i,
     /I\s+need\s+to\s+stop\s+and\s+flag/i,
-    /What\s+I\s+will\s+not\s+do/i,
-    /What\s+is\s+actually\s+happening/i,
     /replayed\s+against\s+a\s+real\s+system/i,
-    /tool-call\s+payloads/i,
-    /copy-pasteable\s+JSON/i,
-    /injected\s+into\s+another\s+AI/i,
-    /emit\s+tool\s+invocations/i,
-    /make\s+me\s+output\s+tool\s+calls/i,
-    // Tool availability claims (Cursor role lock)
-    /I\s+(?:only\s+)?have\s+(?:access\s+to\s+)?(?:two|2|read_file|read_dir)\s+tool/i,
-    /(?:only|just)\s+(?:two|2)\s+(?:tools?|functions?)\b/i,
-    /\bread_file\b.*\bread_dir\b/i,
-    /\bread_dir\b.*\bread_file\b/i,
-    /有以下.*?(?:两|2)个.*?工具/,
-    /我有.*?(?:两|2)个工具/,
-    /工具.*?(?:只有|有以下|仅有).*?(?:两|2)个/,
-    /只能用.*?read_file/i,
-    /无法调用.*?工具/,
-    /(?:仅限于|仅用于).*?(?:查阅|浏览).*?(?:文档|docs)/,
-    // Chinese identity refusal
-    /我是\s*Cursor\s*的?\s*支持助手/,
-    /Cursor\s*的?\s*支持系统/,
-    /Cursor\s*(?:编辑器|IDE)?\s*相关的?\s*问题/,
-    /我的职责是帮助你解答/,
-    /我无法透露/,
-    /帮助你解答\s*Cursor/,
-    /运行在\s*Cursor\s*的/,
-    /专门.*回答.*(?:Cursor|编辑器)/,
-    /我只能回答/,
-    /无法提供.*信息/,
-    /我没有.*也不会提供/,
-    /功能使用[、,]\s*账单/,
-    /故障排除/,
-    // Chinese topic refusal
-    /与\s*(?:编程|代码|开发)\s*无关/,
-    /请提问.*(?:编程|代码|开发|技术).*问题/,
-    /只能帮助.*(?:编程|代码|开发)/,
-    // Chinese prompt injection detection
-    /不是.*需要文档化/,
-    /工具调用场景/,
-    /语言偏好请求/,
-    /提供.*具体场景/,
+    // Chinese
+    /作为.*?助手.*?只能/,
+    /超出.*?(?:能力|范围|职责)/,
+    /无法.*?(?:完成|执行|帮助)/,
+    /不(?:支持|允许|能够?).*?(?:操作|功能)/,
+];
+
+// 中权重：限制性信号（需配合其他特征）
+const REFUSAL_MID: RegExp[] = [
+    /I\s+can\s+only\s+answer/i,
+    /I\s+only\s+answer/i,
+    /focused\s+on\s+software\s+development/i,
+    /not\s+able\s+to\s+help\s+with\s+(?:that|this)/i,
+    /unrelated\s+to\s+(?:programming|coding)/i,
+    /Cursor\s+IDE\s+(?:questions|features|related)/i,
+    /questions\s+about\s+(?:Cursor|the\s+(?:AI\s+)?code\s+editor)/i,
+    /help\s+with\s+(?:coding|programming)\s+and\s+Cursor/i,
+    /I\s+don't\s+have\s+(?:the\s+)?(?:ability|capability)/i,
+    /not\s+able\s+to\s+search/i,
+    /I\s+cannot\s+search/i,
+    /not\s+in\s+my\s+core/i,
+    /pricing[, \s]*or\s*troubleshooting/i,
+    /(?:I'?m|I\s+am)\s+here\s+to\s+help\s+with\s+(?:coding|programming)/i,
+    /I\s+can\s+(?:only\s+)?help\s+(?:you\s+)?with\s+things\s+like\s+(?:code|coding|programming|Cursor)/i,
+    // Chinese
+    /仅.*?(?:回答|解答|处理).*?(?:问题|请求)/,
+    /不在.*?(?:职责|功能).*?范围/,
+    /提供.*?具体场景/,
     /即报错/,
 ];
 
+// 低权重：弱信号（单独不算数，但可叠加）
+const REFUSAL_LOW: RegExp[] = [
+    /I'?m\s+a\s+coding\s+assistant/i,
+    /appears\s+to\s+be\s+(?:asking|about)\s+.*?unrelated/i,
+    /What\s+I\s+will\s+not\s+do/i,
+    /copy-pasteable\s+JSON/i,
+];
+
 export function isRefusal(text: string): boolean {
-    return REFUSAL_PATTERNS.some(p => p.test(text));
+    // 截断响应不判定为拒绝（长输出不可能是拒绝）
+    if (text.length > 800) return false;
+
+    let score = 0;
+    const hits: string[] = [];
+
+    // 高权重特征：每命中一条 +3 分
+    for (const p of REFUSAL_HIGH) {
+        if (p.test(text)) { score += 3; hits.push(`HIGH(+3):${p.source.substring(0, 30)}`); }
+    }
+
+    // 中权重特征：每命中一条 +2 分
+    for (const p of REFUSAL_MID) {
+        if (p.test(text)) { score += 2; hits.push(`MID(+2):${p.source.substring(0, 30)}`); }
+    }
+
+    // 低权重特征：每命中一条 +1 分
+    for (const p of REFUSAL_LOW) {
+        if (p.test(text)) { score += 1; hits.push(`LOW(+1):${p.source.substring(0, 30)}`); }
+    }
+
+    // 短响应加分（拒绝通常很简短）
+    if (text.length < 150) { score += 1; hits.push('dynamic(+1):short-text'); }
+
+    const detected = score >= 3;
+
+    // 拒绝日志（通过环境变量 LOG_REFUSAL_FEATURES=true 开启）
+    if (detected && process.env.LOG_REFUSAL_FEATURES === 'true') {
+        const snippet = text.length > 150 ? text.substring(0, 150) + '...' : text;
+        console.log(JSON.stringify({ type: 'refusal_detected', score, threshold: 3, hits, snippet }));
+    }
+
+    return detected;
 }
 
 // ==================== 模型列表 ====================
@@ -538,6 +547,33 @@ function deduplicateContinuation(existing: string, continuation: string): string
     return continuation;
 }
 
+/**
+ * 从响应末尾提取语义锚点，回溯到最近的完整语义边界
+ * 目的：避免锚点落在代码块/XML/括号中间，让模型能从干净的位置续写
+ *
+ * 优先级：完整代码块边界 > 完整行 > 原始字符截取
+ */
+function extractSemanticAnchor(text: string, maxLength = 300): string {
+    if (text.length <= maxLength) return text;
+
+    const tail = text.slice(-maxLength * 2); // 搜索范围放大2倍
+
+    // 优先级1：回溯到最近的空行（段落边界）
+    const paraBreak = tail.lastIndexOf('\n\n');
+    if (paraBreak !== -1 && tail.length - paraBreak <= maxLength) {
+        return tail.slice(paraBreak + 2);
+    }
+
+    // 优先级2：回溯到最近的行首（不在行中间截断）
+    const lineBreak = tail.lastIndexOf('\n');
+    if (lineBreak !== -1 && tail.length - lineBreak <= maxLength) {
+        return tail.slice(lineBreak + 1);
+    }
+
+    // 兜底：直接取末尾 maxLength 字符
+    return text.slice(-maxLength);
+}
+
 // ==================== 重试辅助 ====================
 export const MAX_REFUSAL_RETRIES = 2;
 
@@ -750,8 +786,7 @@ async function handleStream(res: Response, cursorReq: CursorChatRequest, body: A
                 const prevLength = fullResponse.length;
                 console.log(`[Handler] ⚠️ 降级到传统续写 (第${continueRound}次，共最多2次)...`);
 
-                const anchorLength = Math.min(300, fullResponse.length);
-                const anchorText = fullResponse.slice(-anchorLength);
+                const anchorText = extractSemanticAnchor(fullResponse);
 
                 const continuationPrompt = `Output cut off. Last part:\n\`\`\`\n...${anchorText}\n\`\`\`\nContinue exactly from the cut-off point. No repeats.`;
 
@@ -868,7 +903,7 @@ async function handleStream(res: Response, cursorReq: CursorChatRequest, body: A
                 stopReason = 'tool_use';
 
                 // Check if the residual text is a known refusal, if so, drop it completely!
-                if (REFUSAL_PATTERNS.some(p => p.test(cleanText))) {
+                if (isRefusal(cleanText)) {
                     console.log(`[Handler] Supressed refusal text generated during tool usage: ${cleanText.substring(0, 100)}...`);
                     cleanText = '';
                 }

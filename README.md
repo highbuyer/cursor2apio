@@ -1,4 +1,4 @@
-# Cursor2API v2.6
+# Cursor2API v2.7
 
 将 Cursor 文档页免费 AI 对话接口代理转换为 **Anthropic Messages API** 和 **OpenAI Chat Completions API**，支持 **Claude Code** 和 **Cursor IDE** 使用。
 
@@ -69,7 +69,7 @@ npm run dev
 ### 4. 配合 Claude Code 使用
 
 ```bash
-export ANTHROPIC_BASE_URL=http://localhost:3010
+export ANTHROPIC_BASE_URL=http://localhost:3099
 claude
 ```
 
@@ -77,7 +77,7 @@ claude
 
 在 Cursor IDE 的设置中配置：
 ```
-OPENAI_BASE_URL=http://localhost:3010/v1
+OPENAI_BASE_URL=http://localhost:3099/v1
 ```
 模型选择 `claude-sonnet-4-20250514` 或其他列出的 Claude 模型名。
 

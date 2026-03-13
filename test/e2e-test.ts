@@ -7,7 +7,7 @@
  * 3. 验证 stop_reason 正确
  */
 
-const API_URL = 'http://localhost:3010/v1/messages';
+const API_URL = 'http://localhost:3099/v1/messages';
 
 interface TestResult {
     name: string;

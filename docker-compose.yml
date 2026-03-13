@@ -7,13 +7,13 @@ services:
     container_name: cursor2api
     restart: unless-stopped
     ports:
-      - "3010:3010"
+      - "3099:3099"
     volumes:
       # 挂载外部配置文件（推荐）——修改后只需 docker compose restart 即可生效
       - ./config.yaml:/app/config.yaml:ro
     environment:
       - NODE_ENV=production
-      - PORT=3010
+      - PORT=3099
       - TIMEOUT=120
       # ⚠️ 部署到海外机器无需代理，如果在国内云，取消注释并填入你的本机 http/socks 代理
       # - PROXY=http://host.docker.internal:7890

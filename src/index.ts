@@ -58,7 +58,18 @@ app.get('/v1/models', listModels);
 
 // 健康检查
 app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', version: VERSION });
+    res.json({
+        status: 'ok',
+        version: VERSION,
+        timestamp: new Date().toISOString(),
+        config: {
+            port: config.port,
+            model: config.cursorModel,
+            vision: config.vision?.enabled ? config.vision.mode ?? 'ocr' : 'disabled',
+            thinking: config.enableThinking ?? false,
+            proxy: config.proxy ? 'enabled' : 'disabled',
+        },
+    });
 });
 
 // 根路径

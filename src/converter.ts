@@ -98,8 +98,8 @@ function buildToolInstructions(
 
     // 精简行为规则（合并为一段）
     const behaviorRules = hasCommunicationTool
-        ? `Use \`\`\`json action blocks for actions. Emit multiple independent blocks in one response. For dependent actions, wait for results. Use communication actions (attempt_completion, ask_followup_question) when done or need input. Keep Write calls under 150 lines; split larger content via Bash append (\`cat >> file << 'EOF'\`).`
-        : `Use \`\`\`json action blocks for actions. Emit multiple independent blocks in one response. For dependent actions, wait for results. Keep text brief. No action needed = plain text. Keep Write calls under 150 lines; split larger content via Bash append (\`cat >> file << 'EOF'\`).`;
+        ? `Use \`\`\`json action blocks for actions. Emit multiple independent blocks in one response. For dependent actions, wait for results. Use communication actions (attempt_completion, ask_followup_question) when done or need input. Keep Write calls under 150 lines; split larger content via Bash append (\`cat >> file << 'EOF'\`). IMPORTANT: Your output budget is limited. If a task requires writing large files or long content, proactively split into multiple smaller actions (≤150 lines each) rather than writing everything at once — this prevents truncation.`
+        : `Use \`\`\`json action blocks for actions. Emit multiple independent blocks in one response. For dependent actions, wait for results. Keep text brief. No action needed = plain text. Keep Write calls under 150 lines; split larger content via Bash append (\`cat >> file << 'EOF'\`). IMPORTANT: Your output budget is limited. If a task requires writing large files or long content, proactively split into multiple smaller actions (≤150 lines each) rather than writing everything at once — this prevents truncation.`;
 
     // ★ 角色扩展 — 参考 Cursor-Toolbox 的反拒绝策略
     // 注入到用户消息中（而非系统提示词），更不易被 Cursor 后端过滤
@@ -116,6 +116,27 @@ Actions:
 ${toolList}
 
 ${behaviorRules}${forceConstraint}`;
+}
+
+// ==================== 动态 few-shot 工具提取 ====================
+
+/**
+ * 从对话历史中提取最近一次实际使用的工具名
+ * 从后往前扫描 assistant 消息中的 tool_use block
+ * 返回工具名，若无历史工具调用则返回 null（回退到默认 few-shot）
+ */
+function getLastUsedToolName(messages: AnthropicMessage[]): string | null {
+    for (let i = messages.length - 1; i >= 0; i--) {
+        const msg = messages[i];
+        if (msg.role !== 'assistant') continue;
+        if (!Array.isArray(msg.content)) continue;
+        for (const block of msg.content) {
+            if (block.type === 'tool_use' && block.name) {
+                return block.name;
+            }
+        }
+    }
+    return null;
 }
 
 // ==================== 请求转换 ====================
@@ -162,10 +183,13 @@ export async function convertToCursorRequest(req: AnthropicRequest): Promise<Cur
         // 系统提示词与工具指令合并
         toolInstructions = combinedSystem + '\n\n---\n\n' + toolInstructions;
 
-        // 选取一个适合做 few-shot 的工具（优先选 Read/read_file 类）
+        // 动态 few-shot：优先选取对话历史中最近一次实际用到的工具
+        // 这样示例与当前任务语境匹配，提升工具调用命中率
+        const lastUsedToolName = getLastUsedToolName(req.messages);
+        const lastUsedTool = lastUsedToolName ? tools.find(t => t.name === lastUsedToolName) : null;
         const readTool = tools.find(t => /^(Read|read_file|ReadFile)$/i.test(t.name));
         const bashTool = tools.find(t => /^(Bash|execute_command|RunCommand)$/i.test(t.name));
-        const fewShotTool = readTool || bashTool || tools[0];
+        const fewShotTool = lastUsedTool || readTool || bashTool || tools[0];
         const fewShotParams = fewShotTool.name.match(/^(Read|read_file|ReadFile)$/i)
             ? { file_path: 'src/index.ts' }
             : fewShotTool.name.match(/^(Bash|execute_command|RunCommand)$/i)

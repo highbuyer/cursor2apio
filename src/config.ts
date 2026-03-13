@@ -9,7 +9,7 @@ export function getConfig(): AppConfig {
 
     // 默认配置
     config = {
-        port: 3010,
+        port: 3099,
         timeout: 120,
         cursorModel: 'anthropic/claude-sonnet-4.6',
         enableThinking: true,

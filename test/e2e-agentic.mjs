@@ -10,10 +10,10 @@
  *
  * 运行方式：
  *   node test/e2e-agentic.mjs
- *   PORT=3010 node test/e2e-agentic.mjs
+ *   PORT=3099 node test/e2e-agentic.mjs
  */
 
-const BASE_URL = `http://localhost:${process.env.PORT || 3010}`;
+const BASE_URL = `http://localhost:${process.env.PORT || 3099}`;
 const MODEL = 'claude-sonnet-4-5-20251120';  // Claude Code 默认使用的模型
 const MAX_TURNS = 12;  // 最多允许 12 轮工具调用，防止死循环
 

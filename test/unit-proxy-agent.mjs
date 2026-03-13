@@ -134,9 +134,9 @@ test('dispatcher 包含正确的代理 URL', () => {
 
 test('带认证的代理 URL', () => {
     resetCache();
-    mockConfig = { proxy: 'http://user:pass@proxy.corp.com:8080' };
+    mockConfig = { proxy: 'http://user:pass@proxy.corp.com:8088' };
     const d = getProxyDispatcher();
-    assertEqual(d.url, 'http://user:pass@proxy.corp.com:8080');
+    assertEqual(d.url, 'http://user:pass@proxy.corp.com:8088');
 });
 
 test('HTTPS 代理 URL', () => {
@@ -148,7 +148,7 @@ test('HTTPS 代理 URL', () => {
 
 test('带特殊字符密码的代理 URL', () => {
     resetCache();
-    const url = 'http://admin:p%40ssw0rd@proxy:8080';
+    const url = 'http://admin:p%40ssw0rd@proxy:8088';
     mockConfig = { proxy: url };
     const d = getProxyDispatcher();
     assertEqual(d.url, url, '应原样保留 URL 编码的特殊字符');

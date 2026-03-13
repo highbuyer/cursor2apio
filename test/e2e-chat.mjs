@@ -1,17 +1,17 @@
 /**
  * test/e2e-chat.mjs
  *
- * 端到端测试：向本地代理服务器 (localhost:3010) 发送真实请求
+ * 端到端测试：向本地代理服务器 (localhost:3099) 发送真实请求
  * 测试普通问答、工具调用、长输出等场景
  *
  * 运行方式：
  *   1. 先启动服务: npm run dev  (或 npm start)
  *   2. node test/e2e-chat.mjs
  *
- * 可通过环境变量自定义端口：PORT=3010 node test/e2e-chat.mjs
+ * 可通过环境变量自定义端口：PORT=3099 node test/e2e-chat.mjs
  */
 
-const BASE_URL = `http://localhost:${process.env.PORT || 3010}`;
+const BASE_URL = `http://localhost:${process.env.PORT || 3099}`;
 const MODEL = 'claude-3-5-sonnet-20241022';
 
 // ─── 颜色输出 ───────────────────────────────────────────────────────────────
@@ -299,7 +299,7 @@ await test('工具调用后追加 tool_result 的多轮对话', async () => {
             content: [{
                 type: 'tool_result',
                 tool_use_id: toolBlock.id,
-                content: '{"port":3010,"model":"claude-sonnet-4.6","timeout":120}',
+                content: '{"port":3099,"model":"claude-sonnet-4.6","timeout":120}',
             }]
         }
     ], { tools: [READ_TOOL] });
